@@ -86,6 +86,7 @@
             display: block;
         }
 
+        /* Кнопка звука появляется только после запуска */
         #sound-control {
             position: fixed;
             bottom: 30px;
@@ -93,8 +94,8 @@
             z-index: 3000;
             padding: 12px 18px;
             font-size: 24px;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(6px);
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
             border: 2px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             color: #fff;
@@ -109,16 +110,16 @@
         }
 
         #sound-control:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.35);
             transform: scale(1.1);
-        }
-
-        #sound-control.muted {
-            opacity: 0.5;
         }
 
         #sound-control.visible {
             display: flex;
+        }
+
+        #sound-control.muted {
+            opacity: 0.5;
         }
 
         @media (max-width: 480px) {
@@ -138,22 +139,27 @@
 </head>
 <body>
 
+    <!-- СТАРТОВЫЙ ЭКРАН -->
     <div id="start-screen">
         <button id="start-btn">▶ СТАРТ</button>
     </div>
 
+    <!-- ВИДЕО -->
     <div id="video-container">
-        <video id="main-video" playsinline muted>
+        <!-- Видео изначально с muted, чтобы браузер разрешил автозапуск -->
+        <video id="main-video" playsinline muted preload="auto">
             <source src="TEST.mp4" type="video/mp4">
             Ваш браузер не поддерживает тег video.
         </video>
     </div>
 
+    <!-- АУДИО — изначально muted -->
     <audio id="main-audio" preload="auto" muted>
         <source src="TEST.m4a" type="audio/mp4">
         Ваш браузер не поддерживает аудио.
     </audio>
 
+    <!-- КНОПКА ВКЛЮЧЕНИЯ ЗВУКА (появляется после запуска) -->
     <button id="sound-control" class="muted">🔇</button>
 
     <script>
@@ -167,6 +173,7 @@
             let isSoundOn = false;
             let isStarted = false;
 
+            // Включение полноэкранного режима
             function goFullscreen() {
                 const el = document.documentElement;
                 if (el.requestFullscreen) {
@@ -178,93 +185,96 @@
                 }
             }
 
+            // ГЛАВНАЯ ФУНКЦИЯ ЗАПУСКА
             function startVideo() {
                 if (isStarted) return;
                 isStarted = true;
 
+                // 1. Скрываем стартовый экран
                 startScreen.classList.add('hidden');
+
+                // 2. Включаем полноэкранный режим
                 goFullscreen();
-                
-                // Сначала запускаем ВИДЕО (оно muted)
+
+                // 3. Запускаем ВИДЕО (оно muted, поэтому браузер разрешит)
                 video.play().then(() => {
-                    console.log('✅ Видео запущено');
+                    console.log('✅ Видео запущено (muted)');
                     
-                    // Потом запускаем АУДИО (оно тоже muted)
+                    // 4. Запускаем АУДИО (тоже muted)
                     return audio.play();
                 }).then(() => {
-                    console.log('✅ Аудио запущено');
+                    console.log('✅ Аудио запущено (muted)');
                     
-                    // Показываем кнопку звука
+                    // 5. Показываем кнопку управления звуком
                     soundBtn.classList.add('visible');
                     soundBtn.classList.add('muted');
                     soundBtn.textContent = '🔇';
                     
-                    // ВАЖНО: включаем звук через 0.5 секунды после запуска
+                    // 6. Через 0.3 секунды ВКЛЮЧАЕМ ЗВУК
+                    // Это работает, потому что был клик по кнопке СТАРТ
                     setTimeout(() => {
-                        enableSound();
-                    }, 500);
+                        video.muted = false;
+                        audio.muted = false;
+                        soundBtn.classList.remove('muted');
+                        soundBtn.textContent = '🔊';
+                        isSoundOn = true;
+                        console.log('🔊 Звук включён!');
+                    }, 300);
                     
                 }).catch(err => {
                     console.warn('Ошибка запуска:', err);
-                    // Если не получилось - пробуем ещё раз через клик
+                    // Если не получилось — показываем кнопку, чтобы пользователь мог попробовать снова
                     soundBtn.classList.add('visible');
                     soundBtn.classList.add('muted');
                     soundBtn.textContent = '🔇';
                 });
             }
 
-            // Функция включения звука
-            function enableSound() {
-                video.muted = false;
-                audio.muted = false;
-                soundBtn.classList.remove('muted');
-                soundBtn.textContent = '🔊';
-                isSoundOn = true;
-                console.log('🔊 Звук включён');
-            }
-
-            // Функция выключения звука
-            function disableSound() {
-                video.muted = true;
-                audio.muted = true;
-                soundBtn.classList.add('muted');
-                soundBtn.textContent = '🔇';
-                isSoundOn = false;
-                console.log('🔇 Звук выключен');
-            }
-
-            // Управление звуком по кнопке
+            // УПРАВЛЕНИЕ ЗВУКОМ ПО КНОПКЕ
             soundBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 
                 if (isSoundOn) {
-                    disableSound();
+                    // Выключаем звук
+                    video.muted = true;
+                    audio.muted = true;
+                    soundBtn.classList.add('muted');
+                    soundBtn.textContent = '🔇';
+                    isSoundOn = false;
+                    console.log('🔇 Звук выключен');
                 } else {
-                    enableSound();
+                    // Включаем звук
+                    video.muted = false;
+                    audio.muted = false;
+                    soundBtn.classList.remove('muted');
+                    soundBtn.textContent = '🔊';
+                    isSoundOn = true;
+                    console.log('🔊 Звук включён');
                 }
             });
 
-            // Синхронизация времени
+            // СИНХРОНИЗАЦИЯ ВРЕМЕНИ
             video.addEventListener('timeupdate', function() {
                 if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
                     audio.currentTime = video.currentTime;
                 }
             });
 
-            // Если видео на паузе - аудио тоже на паузе
+            // Если видео на паузе — аудио тоже на паузе
             video.addEventListener('pause', function() {
                 if (!audio.paused) {
                     audio.pause();
                 }
             });
 
-            // Если видео играет - аудио тоже играет
+            // Если видео запущено — аудио тоже запускаем
             video.addEventListener('play', function() {
                 if (audio.paused && !video.paused) {
                     audio.play().catch(() => {});
                 }
             });
 
+            // ОБРАБОТЧИКИ КЛИКОВ ПО СТАРТУ
             startBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 startVideo();
@@ -272,6 +282,7 @@
 
             startScreen.addEventListener('click', startVideo);
 
+            // Обработка ошибок
             video.addEventListener('error', function(e) {
                 console.warn('Ошибка видео:', e);
             });
@@ -280,7 +291,7 @@
                 console.warn('Ошибка аудио:', e);
             });
 
-            console.log('✅ Готово. Нажмите СТАРТ');
+            console.log('✅ Готово. Нажмите СТАРТ для запуска видео со звуком!');
         })();
     </script>
 
