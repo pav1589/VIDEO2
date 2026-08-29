@@ -146,6 +146,12 @@
         </video>
     </div>
 
+    <!-- Скрытый аудио элемент -->
+    <audio id="main-audio" preload="auto">
+        <source src="TEST.m4a" type="audio/mp4">
+        Ваш браузер не поддерживает аудио.
+    </audio>
+
     <!-- Кнопка управления звуком -->
     <button id="sound-control" class="muted">🔇</button>
 
@@ -154,6 +160,7 @@
             const startScreen = document.getElementById('start-screen');
             const startBtn = document.getElementById('start-btn');
             const video = document.getElementById('main-video');
+            const audio = document.getElementById('main-audio');
             const soundBtn = document.getElementById('sound-control');
             
             let isSoundOn = false;
@@ -173,12 +180,26 @@
                 startScreen.classList.add('hidden');
                 goFullscreen();
                 
-                // Пытаемся запустить видео со звуком
-                video.play().catch(err => {
+                // Запускаем видео и аудио одновременно
+                const playPromises = [
+                    video.play(),
+                    audio.play()
+                ];
+
+                Promise.all(playPromises).then(() => {
+                    // Всё запустилось со звуком
+                    soundBtn.classList.remove('muted');
+                    soundBtn.textContent = '🔊';
+                    isSoundOn = true;
+                    video.muted = false;
+                    audio.muted = false;
+                }).catch(err => {
                     console.warn('Автовоспроизведение с звуком заблокировано:', err);
-                    // Если браузер блокирует звук, включаем muted и пробуем снова
+                    // Если браузер блокирует звук, запускаем без звука
                     video.muted = true;
+                    audio.muted = true;
                     video.play().catch(() => {});
+                    audio.play().catch(() => {});
                     soundBtn.classList.add('muted');
                     soundBtn.textContent = '🔇';
                     isSoundOn = false;
@@ -189,23 +210,49 @@
             soundBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 
-                if (video.muted) {
+                if (video.muted || audio.muted) {
                     // Включаем звук
                     video.muted = false;
+                    audio.muted = false;
                     soundBtn.classList.remove('muted');
                     soundBtn.textContent = '🔊';
                     isSoundOn = true;
                     
-                    // Если видео на паузе - запускаем
+                    // Если на паузе - запускаем
                     if (video.paused) {
                         video.play().catch(() => {});
+                    }
+                    if (audio.paused) {
+                        audio.play().catch(() => {});
                     }
                 } else {
                     // Выключаем звук
                     video.muted = true;
+                    audio.muted = true;
                     soundBtn.classList.add('muted');
                     soundBtn.textContent = '🔇';
                     isSoundOn = false;
+                }
+            });
+
+            // Синхронизация: если видео на паузе - ставим на паузу и аудио
+            video.addEventListener('pause', function() {
+                if (!audio.paused) {
+                    audio.pause();
+                }
+            });
+
+            // Если видео запущено - запускаем и аудио
+            video.addEventListener('play', function() {
+                if (audio.paused && !video.paused) {
+                    audio.play().catch(() => {});
+                }
+            });
+
+            // Синхронизация времени (чтобы звук не отставал)
+            video.addEventListener('timeupdate', function() {
+                if (Math.abs(audio.currentTime - video.currentTime) > 0.5) {
+                    audio.currentTime = video.currentTime;
                 }
             });
 
@@ -216,19 +263,15 @@
 
             startScreen.addEventListener('click', startVideo);
 
-            // При загрузке видео показываем, что звук выключен
-            video.addEventListener('loadedmetadata', function() {
-                if (video.muted) {
-                    soundBtn.classList.add('muted');
-                    soundBtn.textContent = '🔇';
-                }
-            });
-
             video.addEventListener('error', function(e) {
                 console.warn('Ошибка загрузки видео:', e);
             });
 
-            console.log('✅ Готово. Нажмите СТАРТ для запуска видео. Кнопка 🔊 для включения звука.');
+            audio.addEventListener('error', function(e) {
+                console.warn('Ошибка загрузки аудио:', e);
+            });
+
+            console.log('✅ Готово. Видео и аудио будут запущены одновременно.');
         })();
     </script>
 
