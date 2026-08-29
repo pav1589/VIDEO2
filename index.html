@@ -101,7 +101,7 @@
     </div>
 
     <div id="video-container">
-        <video id="main-video" playsinline preload="auto">
+        <video id="main-video" playsinline muted preload="auto">
             <source src="TEST.mp4" type="video/mp4">
             Ваш браузер не поддерживает тег video.
         </video>
@@ -120,6 +120,7 @@
             const audio = document.getElementById('main-audio');
             
             let isStarted = false;
+            let isAudioPlaying = false;
 
             function goFullscreen() {
                 const el = document.documentElement;
@@ -139,59 +140,60 @@
                 startScreen.classList.add('hidden');
                 goFullscreen();
 
-                // 1. ПОЛНОСТЬЮ ОТКЛЮЧАЕМ ЗВУК В ВИДЕО (главный фикс)
-                video.muted = true;
-                video.volume = 0; // на всякий случай
-
-                // 2. Запускаем видео (без звука)
+                // Запускаем ВИДЕО (оно muted, поэтому без звука)
                 video.play().then(() => {
-                    console.log('✅ Видео запущено (звук полностью отключён)');
+                    console.log('✅ Видео запущено (muted)');
                     
-                    // 3. Запускаем аудио (со звуком)
+                    // Запускаем АУДИО (оно НЕ muted, будет со звуком)
                     return audio.play();
                 }).then(() => {
-                    console.log('✅ Аудио запущено');
-                    console.log('🔊 Звук идёт только из аудиофайла');
+                    console.log('✅ Аудио запущено со звуком!');
+                    isAudioPlaying = true;
                 }).catch(err => {
-                    console.warn('Ошибка запуска:', err);
-                    // Если не получилось - пробуем снова
+                    console.warn('Ошибка запуска аудио:', err);
+                    // Если аудио не запустилось - пробуем через 1 секунду
                     setTimeout(() => {
-                        video.play().catch(() => {});
-                        audio.play().catch(() => {});
-                    }, 100);
+                        audio.play().then(() => {
+                            console.log('✅ Аудио запущено со звуком (повторная попытка)!');
+                            isAudioPlaying = true;
+                        }).catch(() => {
+                            console.warn('❌ Аудио не запустилось');
+                        });
+                    }, 500);
                 });
             }
 
-            // Синхронизация времени
-            video.addEventListener('timeupdate', function() {
-                if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
-                    audio.currentTime = video.currentTime;
+            // СИНХРОНИЗАЦИЯ: видео управляет аудио
+            video.addEventListener('play', function() {
+                if (audio.paused && !video.paused) {
+                    audio.play().then(() => {
+                        console.log('✅ Аудио синхронизировано (play)');
+                    }).catch(() => {});
                 }
             });
 
-            // Если видео на паузе - аудио тоже на паузе
             video.addEventListener('pause', function() {
                 if (!audio.paused) {
                     audio.pause();
                 }
             });
 
-            // Если видео играет - аудио тоже играет
-            video.addEventListener('play', function() {
-                if (audio.paused && !video.paused) {
-                    audio.play().catch(() => {});
+            video.addEventListener('timeupdate', function() {
+                if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
+                    audio.currentTime = video.currentTime;
                 }
             });
 
-            // Обработка кликов по СТАРТ
+            // КЛИК ПО КНОПКЕ СТАРТ
             startBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 startVideo();
             });
 
+            // КЛИК ПО ЭКРАНУ (тоже запускает)
             startScreen.addEventListener('click', startVideo);
 
-            // Ошибки
+            // ОШИБКИ
             video.addEventListener('error', function(e) {
                 console.warn('Ошибка видео:', e);
             });
@@ -200,7 +202,7 @@
                 console.warn('Ошибка аудио:', e);
             });
 
-            console.log('✅ Готово. Звук видео отключён, играет только аудио.');
+            console.log('🎬 Готово! Нажмите СТАРТ');
         })();
     </script>
 
