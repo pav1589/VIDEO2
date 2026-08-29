@@ -86,7 +86,6 @@
             display: block;
         }
 
-        /* Кнопка управления звуком */
         #sound-control {
             position: fixed;
             bottom: 30px;
@@ -103,7 +102,7 @@
             transition: all 0.3s ease;
             width: 60px;
             height: 60px;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             user-select: none;
@@ -116,6 +115,10 @@
 
         #sound-control.muted {
             opacity: 0.5;
+        }
+
+        #sound-control.visible {
+            display: flex;
         }
 
         @media (max-width: 480px) {
@@ -140,19 +143,17 @@
     </div>
 
     <div id="video-container">
-        <video id="main-video" playsinline>
+        <video id="main-video" playsinline muted>
             <source src="TEST.mp4" type="video/mp4">
             Ваш браузер не поддерживает тег video.
         </video>
     </div>
 
-    <!-- Скрытый аудио элемент -->
-    <audio id="main-audio" preload="auto">
+    <audio id="main-audio" preload="auto" muted>
         <source src="TEST.m4a" type="audio/mp4">
         Ваш браузер не поддерживает аудио.
     </audio>
 
-    <!-- Кнопка управления звуком -->
     <button id="sound-control" class="muted">🔇</button>
 
     <script>
@@ -164,6 +165,7 @@
             const soundBtn = document.getElementById('sound-control');
             
             let isSoundOn = false;
+            let isStarted = false;
 
             function goFullscreen() {
                 const el = document.documentElement;
@@ -177,82 +179,89 @@
             }
 
             function startVideo() {
+                if (isStarted) return;
+                isStarted = true;
+
                 startScreen.classList.add('hidden');
                 goFullscreen();
                 
-                // Запускаем видео и аудио одновременно
-                const playPromises = [
-                    video.play(),
-                    audio.play()
-                ];
-
-                Promise.all(playPromises).then(() => {
-                    // Всё запустилось со звуком
-                    soundBtn.classList.remove('muted');
-                    soundBtn.textContent = '🔊';
-                    isSoundOn = true;
-                    video.muted = false;
-                    audio.muted = false;
-                }).catch(err => {
-                    console.warn('Автовоспроизведение с звуком заблокировано:', err);
-                    // Если браузер блокирует звук, запускаем без звука
-                    video.muted = true;
-                    audio.muted = true;
-                    video.play().catch(() => {});
-                    audio.play().catch(() => {});
+                // Сначала запускаем ВИДЕО (оно muted)
+                video.play().then(() => {
+                    console.log('✅ Видео запущено');
+                    
+                    // Потом запускаем АУДИО (оно тоже muted)
+                    return audio.play();
+                }).then(() => {
+                    console.log('✅ Аудио запущено');
+                    
+                    // Показываем кнопку звука
+                    soundBtn.classList.add('visible');
                     soundBtn.classList.add('muted');
                     soundBtn.textContent = '🔇';
-                    isSoundOn = false;
+                    
+                    // ВАЖНО: включаем звук через 0.5 секунды после запуска
+                    setTimeout(() => {
+                        enableSound();
+                    }, 500);
+                    
+                }).catch(err => {
+                    console.warn('Ошибка запуска:', err);
+                    // Если не получилось - пробуем ещё раз через клик
+                    soundBtn.classList.add('visible');
+                    soundBtn.classList.add('muted');
+                    soundBtn.textContent = '🔇';
                 });
             }
 
-            // Управление звуком
+            // Функция включения звука
+            function enableSound() {
+                video.muted = false;
+                audio.muted = false;
+                soundBtn.classList.remove('muted');
+                soundBtn.textContent = '🔊';
+                isSoundOn = true;
+                console.log('🔊 Звук включён');
+            }
+
+            // Функция выключения звука
+            function disableSound() {
+                video.muted = true;
+                audio.muted = true;
+                soundBtn.classList.add('muted');
+                soundBtn.textContent = '🔇';
+                isSoundOn = false;
+                console.log('🔇 Звук выключен');
+            }
+
+            // Управление звуком по кнопке
             soundBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 
-                if (video.muted || audio.muted) {
-                    // Включаем звук
-                    video.muted = false;
-                    audio.muted = false;
-                    soundBtn.classList.remove('muted');
-                    soundBtn.textContent = '🔊';
-                    isSoundOn = true;
-                    
-                    // Если на паузе - запускаем
-                    if (video.paused) {
-                        video.play().catch(() => {});
-                    }
-                    if (audio.paused) {
-                        audio.play().catch(() => {});
-                    }
+                if (isSoundOn) {
+                    disableSound();
                 } else {
-                    // Выключаем звук
-                    video.muted = true;
-                    audio.muted = true;
-                    soundBtn.classList.add('muted');
-                    soundBtn.textContent = '🔇';
-                    isSoundOn = false;
+                    enableSound();
                 }
             });
 
-            // Синхронизация: если видео на паузе - ставим на паузу и аудио
+            // Синхронизация времени
+            video.addEventListener('timeupdate', function() {
+                if (Math.abs(audio.currentTime - video.currentTime) > 0.3) {
+                    audio.currentTime = video.currentTime;
+                }
+            });
+
+            // Если видео на паузе - аудио тоже на паузе
             video.addEventListener('pause', function() {
                 if (!audio.paused) {
                     audio.pause();
                 }
             });
 
-            // Если видео запущено - запускаем и аудио
+            // Если видео играет - аудио тоже играет
             video.addEventListener('play', function() {
                 if (audio.paused && !video.paused) {
                     audio.play().catch(() => {});
-                }
-            });
-
-            // Синхронизация времени (чтобы звук не отставал)
-            video.addEventListener('timeupdate', function() {
-                if (Math.abs(audio.currentTime - video.currentTime) > 0.5) {
-                    audio.currentTime = video.currentTime;
                 }
             });
 
@@ -264,14 +273,14 @@
             startScreen.addEventListener('click', startVideo);
 
             video.addEventListener('error', function(e) {
-                console.warn('Ошибка загрузки видео:', e);
+                console.warn('Ошибка видео:', e);
             });
 
             audio.addEventListener('error', function(e) {
-                console.warn('Ошибка загрузки аудио:', e);
+                console.warn('Ошибка аудио:', e);
             });
 
-            console.log('✅ Готово. Видео и аудио будут запущены одновременно.');
+            console.log('✅ Готово. Нажмите СТАРТ');
         })();
     </script>
 
