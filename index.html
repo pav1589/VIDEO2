@@ -19,7 +19,6 @@
             font-family: Arial, sans-serif;
         }
 
-        /* Стартовый экран с кнопкой */
         #start-screen {
             position: fixed;
             top: 0;
@@ -66,7 +65,6 @@
             transform: scale(0.95);
         }
 
-        /* Контейнер видео */
         #video-container {
             position: fixed;
             top: 0;
@@ -88,7 +86,6 @@
             display: block;
         }
 
-        /* Адаптив */
         @media (max-width: 480px) {
             #start-btn {
                 padding: 16px 40px;
@@ -99,12 +96,10 @@
 </head>
 <body>
 
-    <!-- СТАРТОВЫЙ ЭКРАН -->
     <div id="start-screen">
         <button id="start-btn">▶ СТАРТ</button>
     </div>
 
-    <!-- ВИДЕО -->
     <div id="video-container">
         <video id="main-video" playsinline muted>
             <source src="TEST.mp4" type="video/mp4">
@@ -117,9 +112,7 @@
             const startScreen = document.getElementById('start-screen');
             const startBtn = document.getElementById('start-btn');
             const video = document.getElementById('main-video');
-            const container = document.getElementById('video-container');
 
-            // Функция включения полноэкранного режима
             function goFullscreen() {
                 const el = document.documentElement;
                 if (el.requestFullscreen) {
@@ -131,18 +124,11 @@
                 }
             }
 
-            // Функция запуска видео
             function startVideo() {
-                // Скрываем стартовый экран
                 startScreen.classList.add('hidden');
-
-                // Включаем полноэкранный режим
                 goFullscreen();
-
-                // Запускаем видео
                 video.play().catch(err => {
                     console.warn('Автовоспроизведение заблокировано:', err);
-                    // Если не запустилось, пробуем ещё раз через клик
                     document.addEventListener('click', function playOnClick() {
                         video.play().catch(() => {});
                         document.removeEventListener('click', playOnClick);
@@ -150,25 +136,16 @@
                 });
             }
 
-            // Обработчик клика по кнопке
             startBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 startVideo();
             });
 
-            // Клик по всему стартовому экрану тоже запускает видео
             startScreen.addEventListener('click', startVideo);
 
-            // Обработка ошибок видео
             video.addEventListener('error', function(e) {
                 console.warn('Ошибка загрузки видео:', e);
             });
-
-            // Если видео уже загружено, но стартовый экран всё ещё виден - ничего не делаем
-            // Ждём действия пользователя
-
-            // При выходе из полноэкранного режима (если нажали ESC) - можно вернуть стартовый экран?
-            // Но по заданию - просто видео без кнопок, поэтому оставляем как есть
 
             console.log('✅ Готово. Нажмите СТАРТ для запуска видео на весь экран.');
         })();
